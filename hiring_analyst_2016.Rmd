@@ -1,0 +1,169 @@
+---
+title: "Discovery-Hiring-Analyst-2016"
+output:
+  html_document:
+    df_print: paged
+---
+***
+
+# Task
+
+## You must create a reproducible report* answering the following questions:
+
+1. What is our daily overall clickthrough rate? How does it vary between the groups?
+2. Which results do people tend to try first? How does it change day-to-day?
+3. What is our daily overall zero results rate? How does it vary between the groups?
+4. Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
+5. Summarize your findings in an executive summary.
+
+
+# Data
+
+> The dataset comes from a tracking schema that we use for assessing user satisfaction. Desktop users are randomly sampled to be anonymously tracked by this schema which uses a "I'm alive" pinging system that we can use to estimate how long our users stay on the pages they visit. The dataset contains just a little more than a week of EL data.
+
+## Column	Value	Description
+
+1. uuid	string	Universally unique identifier (UUID) for backend event handling.
+2. timestamp	integer	The date and time (UTC) of the event, formatted as YYYYMMDDhhmmss.
+3. session_id	string	A unique ID identifying individual sessions.
+4. group	string	A label ("a" or "b").
+5. action	string	Identifies in which the event was created. See below.
+6. checkin	integer	How many seconds the page has been open for.
+7. page_id	string	A unique identifier for correlating page visits and check-ins.
+8. n_results	integer	Number of hits returned to the user. Only shown for searchResultPage events.
+9. result_position	integer	The position of the visited page's link on the search engine results page (SERP).
+
+<https://github.com/wikimedia-research/Discovery-Hiring-Analyst-2016>
+
+***
+
+# Import libraries
+```{r}
+
+# Import some libraries
+library(ggplot2)
+library(plyr)
+library(gridExtra)
+
+```
+
+
+# Import and clean data
+```{r}
+
+# Import dataset CSV and explicitly cast each column type
+
+events <- read.table(
+  file = "C:/Users/Eirika/Documents/Code/Datasets/events_log/events_log.csv",
+  sep = ",", header = TRUE,
+  colClasses =  ( 
+    c(
+      "character", 
+      "character", 
+      "character", 
+      "character", 
+      "character",
+      "integer", 
+      "character",
+      "integer", 
+      "integer"
+    )
+  ))
+
+# Use format mask for timestamps in UTC/GMT
+strptime(events$timestamp, "%Y%m%d%H%M%S", tz = "GMT")
+
+```
+
+*** 
+
+## 1. What is our daily overall clickthrough rate? How does it vary between the groups?
+
+> The daily clickthrough rate varies from 6654 clickthroughs on 3/1/16 to 3323 clickthroughs on 3/5/16
+
+> Group A makes up the bulk of the clickthrough events, whereas group B has far fewer.
+
+```{r}
+
+# Pull out data only of visitPage clickthrough events
+
+clickthrough <- events[events$action == 'visitPage',]
+
+# Chart by day
+
+cpd <- ggplot(clickthrough, aes(x=as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Overall",x="Date", y="Clickthroughs") + geom_bar(fill="tomato") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+
+# Chart per group a and b
+
+groupa <- clickthrough[clickthrough$group == 'a',]
+groupb <- clickthrough[clickthrough$group == 'b',]
+
+cpda <- ggplot(groupa, aes(x=as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Group A",x="Date", y="Clickthroughs") + geom_bar(fill="lawngreen") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+
+
+cpdb <- ggplot(groupb, aes(x=as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Group B", x="Date", y="Clickthroughs") + geom_bar(fill="steelblue") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+
+
+grid.arrange(cpd, cpda, cpdb, ncol=3)
+
+# Overall daily clickthrough rate
+count(as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))
+
+# Group A clickthrough rate
+count(as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))
+
+# Group B clickthrough rate
+count(as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))
+
+```
+
+***
+
+## 2. Which results do people tend to try first? How does it change day-to-day?
+
+> Most people try the first result first. On 3/1/16, there are a cluster of search results that were around position 4000. This was not the case on any other day. 3/4/16 had the largest variability in search result position.
+
+```{r}
+
+# Pull out all data that have a results_position that is not null
+
+results <- events[!(is.na(events$result_position)),]
+
+# count(results$result_position) # for freq table
+
+# Graph of distribution of results_position
+rtf <- ggplot(results, aes(x=results$result_position)) + geom_bar() + coord_cartesian(xlim=c(0,10)) + labs(title = "Results Clicked First", x="Result Position", y= "Frequency")
+
+print(rtf)
+
+# Zoom in on only result positions in the top 500
+
+results_500 <- results[results$result_position < 500,]
+
+days_500 <- ggplot(results_500, aes(x=as.POSIXct(results_500$timestamp, "%Y%m%d", tz = "GMT"), y=results_500$result_position, colour = results_500$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
+
+print(days_500)
+
+# Zoom in on only result positions in the top 200
+
+results_200 <- results_500[results_500$result_position < 200,]
+
+days_200 <- ggplot(results_200, aes(x=as.POSIXct(results_200$timestamp, "%Y%m%d", tz = "GMT"), y=results_200$result_position, colour = results_200$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
+
+print(days_200)
+
+```
+
+***
+
+## 3. What is our daily overall zero results rate? How does it vary between the groups?
+
+> 
+
+
+```{r}
+
+
+
+```
+
