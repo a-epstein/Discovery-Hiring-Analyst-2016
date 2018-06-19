@@ -1,8 +1,6 @@
 ---
 title: "Discovery-Hiring-Analyst-2016"
-output:
-  html_document:
-    df_print: paged
+output: rmarkdown::github_document
 ---
 ***
 
@@ -43,6 +41,7 @@ output:
 # Import some libraries
 library(ggplot2)
 library(plyr)
+library(dplyr)
 library(gridExtra)
 
 ```
@@ -89,6 +88,9 @@ strptime(events$timestamp, "%Y%m%d%H%M%S", tz = "GMT")
 
 clickthrough <- events[events$action == 'visitPage',]
 
+# Pull out clickthroughs that resulted from non-NA result position
+clickthrough <- clickthrough[!is.na(clickthrough$result_position),]
+
 # Chart by day
 
 cpd <- ggplot(clickthrough, aes(x=as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Overall",x="Date", y="Clickthroughs") + geom_bar(fill="tomato") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
@@ -107,13 +109,17 @@ cpdb <- ggplot(groupb, aes(x=as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))
 grid.arrange(cpd, cpda, cpdb, ncol=3)
 
 # Overall daily clickthrough rate
-count(as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))
+#count(as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))
 
 # Group A clickthrough rate
-count(as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))
+#count(as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))
 
 # Group B clickthrough rate
-count(as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))
+#count(as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))
+
+# How large is each group?
+#groupsize <- count(events$group)
+#print(groupsize)
 
 ```
 
@@ -158,12 +164,39 @@ print(days_200)
 
 ## 3. What is our daily overall zero results rate? How does it vary between the groups?
 
-> 
-
+> The daily overall zero results rate ranges between 10 and 15% each day. Group A is closer to the overall trend whereas Group b as a population displays less variability in zero results rate.
 
 ```{r}
 
+# Pull out only search result page action
+search_results <- events[events$action == "searchResultPage",]
 
+# Pull out only n_results of 0, exclude N/A
+
+not_na_results <- search_results[!is.na(search_results$n_results),]
+
+zero_results <- not_na_results[not_na_results$n_results == 0,]
+
+# Pull out group b and group A data
+
+zero_a <- zero_results[zero_results$group == "a",]
+
+zero_b <- zero_results[zero_results$group == "b",]
+
+
+# Plot by day
+
+zrpd <- ggplot(zero_results) + geom_bar(mapping = aes(x=as.POSIXct(zero_results$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+
+# Plot by group
+
+zra <- ggplot(zero_a) + geom_bar(mapping = aes(x=as.POSIXct(zero_a$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+
+zrb <- ggplot(zero_b) + geom_bar(mapping = aes(x=as.POSIXct(zero_b$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+
+print(zrpd)
+print(zra)
+print(zrb)
 
 ```
 
