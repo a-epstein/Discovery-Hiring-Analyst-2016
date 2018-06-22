@@ -43,6 +43,7 @@ library(ggplot2)
 library(plyr)
 library(dplyr)
 library(gridExtra)
+library(lubridate)
 
 ```
 
@@ -70,7 +71,31 @@ events <- read.table(
   ))
 
 # Use format mask for timestamps in UTC/GMT
-strptime(events$timestamp, "%Y%m%d%H%M%S", tz = "GMT")
+# strptime(events$timestamp, "%Y%m%d%H%M%S", tz = "GMT")
+
+# Using ymd_hms and date, convert timestamp column
+events$timestamp <- ymd_hms(events$timestamp)
+events$date <- date(events$timestamp)
+
+```
+
+## Troubleshooting
+
+> Want to select all NA events that werent timestamped correctly and figure out what to do with them
+> Then I decided I want to learn how to do loops in R to iterate through a vector of NA rows
+
+```{r}
+
+# Troubleshooting
+
+fails <- which(is.na(events$timestamp))
+
+# From fails
+# Extract first list element (vector size - (vector size - 1))
+# events[first list element]
+# Loop to the second list element and repeat
+
+events[40953,]
 
 ```
 
@@ -197,6 +222,17 @@ zrb <- ggplot(zero_b) + geom_bar(mapping = aes(x=as.POSIXct(zero_b$timestamp, "%
 print(zrpd)
 print(zra)
 print(zrb)
+
+```
+
+## 4. Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
+
+> 
+
+
+```{r}
+
+
 
 ```
 
