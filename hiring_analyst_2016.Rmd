@@ -1,6 +1,6 @@
 ---
 title: "Discovery-Hiring-Analyst-2016"
-output: rmarkdown::github_document
+output: html_document
 ---
 ***
 
@@ -225,19 +225,19 @@ print(zrb)
 ```{r}
 
 # Group by session id and generate a new column: len that is the difference between the earliest and latest timestamps in a session (in s)
-
-# Remove lengths of 0 and lengths greater than the 99th percentile
+# Remove lengths of 0
 
 sessions <- events %>%
   select(group,session_id,timestamp,date) %>%
   group_by(group,session_id) %>%
   summarise(min=min(timestamp),max=max(timestamp)) %>%
   mutate(len = max - min) %>%
-  filter(len != 0, len < quantile(sessions$len, 0.99))
+  filter(len!=0)
 
 # Box plot comparing groups a and b session length variable
+# Remove lengths greater than the 95th percentile
 
-box <- ggplot(sessions, aes(factor(group), len)) + geom_boxplot(aes(fill = factor(group)), width=0.5, outlier.colour = "dodgerblue", outlier.size = 1, outlier.shape = 16, outlier.stroke = 1) + labs(title="Session length in group a vs group b", x="Group", y="Session Length (s)")
+box <- ggplot(sessions %>% filter(len < quantile(sessions$len, 0.95)), aes(factor(group), len)) + geom_boxplot(aes(fill = factor(group)), width=0.5, outlier.colour = "dodgerblue", outlier.size = 1, outlier.shape = 16, outlier.stroke = 1) + labs(title="Session length in group a vs group b", x="Group", y="Session Length (s)")
 
 print(box)
 
