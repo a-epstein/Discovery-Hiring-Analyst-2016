@@ -43,6 +43,7 @@ library(ggplot2)
 library(plyr)
 library(dplyr)
 library(gridExtra)
+library(lubridate)
 
 ```
 
@@ -69,8 +70,25 @@ events <- read.table(
     )
   ))
 
-# Use format mask for timestamps in UTC/GMT
-strptime(events$timestamp, "%Y%m%d%H%M%S", tz = "GMT")
+# Using ymd_hms and date, convert timestamp column
+events$timestamp <- ymd_hms(events$timestamp)
+events$date <- date(events$timestamp)
+
+```
+
+## Troubleshooting
+
+> Want to select all NA events that werent timestamped correctly and figure out what to do with them
+
+```{r}
+
+# Troubleshooting
+
+# Pull all records out with NA timestamp to a separate data frame to view
+
+fails <- events[is.na(events$timestamp),]
+
+# Remove fails from events df?
 
 ```
 
@@ -93,41 +111,41 @@ clickthrough <- clickthrough[!is.na(clickthrough$result_position),]
 
 # Chart by day
 
-cpd <- ggplot(clickthrough, aes(x=as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Overall",x="Date", y="Clickthroughs") + geom_bar(fill="tomato") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+cpd <- ggplot(clickthrough, aes(x=clickthrough$date)) + geom_bar() + labs(title= "Overall",x="Date", y="Clickthroughs")  + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+print(cpd)
 
 # Chart per group a and b
 
 groupa <- clickthrough[clickthrough$group == 'a',]
 groupb <- clickthrough[clickthrough$group == 'b',]
 
-cpda <- ggplot(groupa, aes(x=as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Group A",x="Date", y="Clickthroughs") + geom_bar(fill="lawngreen") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+cpda <- ggplot(groupa, aes(x=groupa$date)) + labs(title= "Group A",x="Date", y="Clickthroughs") + geom_bar() + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
 
-
-cpdb <- ggplot(groupb, aes(x=as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))) + scale_x_datetime(date_breaks = "1 day") + labs(title= "Group B", x="Date", y="Clickthroughs") + geom_bar(fill="steelblue") + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
+cpdb <- ggplot(groupb, aes(x=groupb$date)) + labs(title= "Group B",x="Date", y="Clickthroughs") + geom_bar() + theme(axis.text.x=element_text(angle=90), axis.text.y=element_text(angle=0))
 
 
 grid.arrange(cpd, cpda, cpdb, ncol=3)
 
 # Overall daily clickthrough rate
-#count(as.POSIXct(clickthrough$timestamp, "%Y%m%d", tz = "GMT"))
+#count(clickthrough$date)
 
 # Group A clickthrough rate
-#count(as.POSIXct(groupa$timestamp, "%Y%m%d", tz = "GMT"))
+#count(groupa$date)
 
 # Group B clickthrough rate
-#count(as.POSIXct(groupb$timestamp, "%Y%m%d", tz = "GMT"))
+#count(groupb$date)
 
 # How large is each group?
 #groupsize <- count(events$group)
 #print(groupsize)
-
+#Error in UseMethod("groups") : no applicable method for 'groups' applied to an object of class "character"
 ```
 
 ***
 
 ## 2. Which results do people tend to try first? How does it change day-to-day?
 
-> Most people try the first result first. On 3/1/16, there are a cluster of search results that were around position 4000. This was not the case on any other day. 3/4/16 had the largest variability in search result position.
+> By far the most people try the first result first. On 3/1/16, there are a cluster of search results that were around position 4000. This was not the case on any other day. 3/4/16 had the largest variability in search result position.
 
 ```{r}
 
@@ -146,7 +164,7 @@ print(rtf)
 
 results_500 <- results[results$result_position < 500,]
 
-days_500 <- ggplot(results_500, aes(x=as.POSIXct(results_500$timestamp, "%Y%m%d", tz = "GMT"), y=results_500$result_position, colour = results_500$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
+days_500 <- ggplot(results_500, aes(x=results_500$date, y=results_500$result_position, colour = results_500$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
 
 print(days_500)
 
@@ -154,7 +172,7 @@ print(days_500)
 
 results_200 <- results_500[results_500$result_position < 200,]
 
-days_200 <- ggplot(results_200, aes(x=as.POSIXct(results_200$timestamp, "%Y%m%d", tz = "GMT"), y=results_200$result_position, colour = results_200$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
+days_200 <- ggplot(results_200, aes(results_200$date, y=results_200$result_position, colour = results_200$result_position)) + geom_jitter() + labs(title = "Results Clicked First", x="Day", y= "Result Position", colour = "Result Position") + scale_colour_gradientn(colours=rainbow(4))
 
 print(days_200)
 
@@ -183,20 +201,47 @@ zero_a <- zero_results[zero_results$group == "a",]
 
 zero_b <- zero_results[zero_results$group == "b",]
 
-
 # Plot by day
 
-zrpd <- ggplot(zero_results) + geom_bar(mapping = aes(x=as.POSIXct(zero_results$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+zrpd <- ggplot(zero_results) + geom_bar(mapping = aes(x=zero_results$date,y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
 
 # Plot by group
 
-zra <- ggplot(zero_a) + geom_bar(mapping = aes(x=as.POSIXct(zero_a$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+zra <- ggplot(zero_a) + geom_bar(mapping = aes(x=zero_a$date,y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
 
-zrb <- ggplot(zero_b) + geom_bar(mapping = aes(x=as.POSIXct(zero_b$timestamp, "%Y%m%d", tz = "GMT"),y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
+zrb <- ggplot(zero_b) + geom_bar(mapping = aes(x=zero_b$date,y =..prop..), stat = "count", group = 1) + labs(title = "Frequency of Zero Results Per Day", x="Day", y= "Percentage of zero Results") + scale_y_continuous(labels = scales::percent_format())
 
 print(zrpd)
 print(zra)
 print(zrb)
+
+```
+
+## 4. Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
+
+> Session length between group a and b appears to be slightly different, with group b having a smaller median session length.
+
+
+```{r}
+
+# Group by session id and generate a new column: len that is the difference between the earliest and latest timestamps in a session (in s)
+
+# Remove lengths of 0 and lengths greater than the 99th percentile
+
+sessions <- events %>%
+  select(group,session_id,timestamp,date) %>%
+  group_by(group,session_id) %>%
+  summarise(min=min(timestamp),max=max(timestamp)) %>%
+  mutate(len = max - min) %>%
+  filter(len != 0, len < quantile(sessions$len, 0.99))
+
+# Box plot comparing groups a and b session length variable
+
+box <- ggplot(sessions, aes(factor(group), len)) + geom_boxplot(aes(fill = factor(group)), width=0.5, outlier.colour = "dodgerblue", outlier.size = 1, outlier.shape = 16, outlier.stroke = 1) + labs(title="Session length in group a vs group b", x="Group", y="Session Length (s)")
+
+print(box)
+
+# Box plot comparing days to session length, separated by group
 
 ```
 
